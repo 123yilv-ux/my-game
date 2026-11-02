@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>大富翁 · 终极完全体</title>
+<style>
+  /* ========== 全局基础 ========== */
+  :root { --primary: #6366f1; --bg-dark: #0f172a; }
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, "PingFang SC", sans-serif; }
+  body { background: radial-gradient(circle at 50% 0%, #1e1b4b 0%, #0f172a 80%) fixed; color: #fff; height: 100vh; overflow: hidden; user-select: none; }
+  .view { position: fixed; inset: 0; display: none; flex-direction: column; overflow-y: auto; }
+  .view.active { display: flex; animation: fadeIn 0.3s ease; }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+  /* ========== 登录与大厅 ========== */
+  #view-login, #view-hall { align-items: center; justify-content: center; }
+  .box { background: rgba(30, 41, 59, 0.8); backdrop-filter: blur(12px); padding: 40px; border-radius: 24px; border: 1px solid rgba(255,255,255,0.1); width: min(450px, 90vw); text-align: center; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.8); }
+  .box h2 { font-size: 28px; margin-bottom: 24px; background: linear-gradient(to right, #818cf8, #c084fc); -webkit-background-clip: text; color: transparent; }
+  .avatar-up { width: 90px; height: 90px; border-radius: 50%; background: #0f172a; border: 2px dashed #6366f1; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center; cursor: pointer; overflow: hidden; transition: 0.2s; position: relative; }
+  .avatar-up:hover { border-color: #c084fc; transform: scale(1.05); }
+  .avatar-up img { width: 100%; height: 100%; object-fit: cover; }
+  
+  .input-group { margin-bottom: 20px; text-align: left; }
+  .input-group label { display: block; font-size: 13px; color: #94a3b8; margin-bottom: 8px; }
+  input[type="text"] { width: 100%; padding: 14px; background: #0f172a; border: 1px solid #334155; border-radius: 12px; color: #fff; font-size: 16px; outline: none; text-align: center; transition: 0.2s; }
+  input[type="text"]:focus { border-color: #6366f1; box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.3); }
+  
+  .btn { width: 100%; padding: 14px; border: none; border-radius: 12px; color: #fff; font-size: 16px; font-weight: 700; cursor: pointer; transition: 0.2s; background: linear-gradient(135deg, #6366f1, #8b5cf6); }
+  .btn:hover { transform: translateY(-2px); filter: brightness(1.1); }
+  .btn:active { transform: scale(0.98); }
+  .btn-secondary { background: #334155; }
+  .btn-green { background: linear-gradient(135deg, #10b981, #059669); }
+  .btn-yellow { background: #eab308; color: #000; }
+  .btn-red { background: #ef4444; }
+  
+  .hall-box { width: min(650px, 90vw); background: rgba(30, 41, 59, 0.8); backdrop-filter: blur(12px); padding: 30px; border-radius: 24px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 25px 50px -12px rgba(0,0,0,0.8); }
+  .hall-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; background: rgba(0,0,0,0.2); padding: 12px 20px; border-radius: 16px; }
+  .hall-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .hall-card { background: #0f172a; border-radius: 16px; padding: 24px; text-align: center; cursor: pointer; transition: 0.2s; border: 1px solid #334155; }
+  .hall-card:hover { border-color: #6366f1; transform: translateY(-4px); background: rgba(99,102,241,0.1); }
+  .hall-card:active { transform: scale(0.96); }
+  .hall-card .icon { font-size: 40px; margin-bottom: 10px; }
+  .hall-card .title { font-size: 18px; font-weight: 800; color: #fff; }
+  .hall-card .desc { font-size: 12px; color: #94a3b8; margin-top: 6px; }
+
+  /* ========== 个人中心 & 排行榜 ========== */
+  #view-profile, #view-leaderboard { align-items: center; padding-top: 40px; }
+  .profile-box { width: min(800px, 95vw); padding-bottom: 50px; }
+  .card { background: rgba(30, 41, 59, 0.8); border-radius: 16px; padding: 24px; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.1); }
+  .card h3 { font-size: 18px; margin-bottom: 16px; border-bottom: 1px solid #334155; padding-bottom: 10px; }
+  .lb-item { display: flex; align-items: center; gap: 15px; background: rgba(30, 41, 59, 0.8); padding: 15px 20px; border-radius: 12px; margin-bottom: 10px; border: 1px solid #334155; }
+  .lb-item .rank { font-size: 20px; font-weight: 900; color: #555; width: 30px; text-align: center; }
+  .lb-item:nth-child(1) .rank { color: #fbbf24; } .lb-item:nth-child(2) .rank { color: #cbd5e1; } .lb-item:nth-child(3) .rank { color: #b45309; }
+  .lb-item img { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; background: #fff; }
+  .lb-item .info { flex: 1; }
+  .lb-item .name { font-weight: 700; font-size: 16px; }
+
+  /* ========== 游戏主界面 ========== */
+  .game-top { display: flex; justify-content: space-between; align-items: center; padding: 12px 24px; background: rgba(15, 23, 42, 0.9); border-bottom: 1px solid rgba(255,255,255,0.1); z-index: 20; }
+  .game-container { display: flex; flex: 1; gap: 20px; padding: 20px; max-width: 1400px; margin: 0 auto; width: 100%; overflow: hidden; }
+  .board-wrap { flex: 1; display: flex; align-items: center; justify-content: center; position: relative; }
+  .board { position: relative; width: min(80vh, 100%); aspect-ratio: 1/1; background: rgba(30, 41, 59, 0.4); border-radius: 24px; border: 1px solid rgba(255,255,255,0.05); box-shadow: inset 0 0 50px rgba(0,0,0,0.5); }
+  
+  .cell { position: absolute; border-radius: 12px; overflow: hidden; background: #1e293b; border: 2px solid #334155; display: flex; flex-direction: column; transition: 0.2s; }
+  .cell.owned-0 { border-color: #ef4444; box-shadow: 0 0 10px rgba(239, 68, 68, 0.3); }
+  .cell.owned-1 { border-color: #3b82f6; box-shadow: 0 0 10px rgba(59, 130, 246, 0.3); }
+  .cell.owned-2 { border-color: #10b981; box-shadow: 0 0 10px rgba(16, 185, 129, 0.3); }
+  .cell.owned-3 { border-color: #eab308; box-shadow: 0 0 10px rgba(234, 179, 8, 0.3); }
+  .cell.owned-4 { border-color: #a855f7; box-shadow: 0 0 10px rgba(168, 85, 247, 0.3); }
+  
+  body.admin-mode .cell { cursor: pointer; border-color: #f1c40f; border-style: dashed; }
+  body.admin-mode .cell:hover { transform: scale(1.08); z-index: 10; }
+  .cell-img { position: absolute; inset: 0; } .cell-img img { width: 100%; height: 100%; object-fit: cover; opacity: 0.8; }
+  .cell-body { position: relative; margin-top: auto; padding: 4px; background: linear-gradient(to top, rgba(15,23,42,0.95) 40%, transparent); text-align: center; z-index: 2; }
+  .cell:not(.has-img) .cell-body { margin: auto 0; background: none; }
+  .cell-name { font-size: 1em; font-weight: 800; text-shadow: 0 1px 3px #000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cell-fx { font-size: 0.75em; color: #94a3b8; font-weight: 600; }
+  .flag { position: absolute; top: 4px; left: 4px; font-size: 1.2em; z-index: 3; }
+  .tokens { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
+  .token { position: absolute; width: 1.6em; height: 1.6em; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 4px 10px rgba(0,0,0,0.5); object-fit: cover; background: #fff; }
+  .token.active { transform: scale(1.3) translateY(-5px); box-shadow: 0 0 15px rgba(255,255,255,0.8); z-index: 10; }
+
+  .center-console { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 12px; width: 45%; aspect-ratio: 1.2/1; background: rgba(15, 23, 42, 0.9); border-radius: 24px; border: 1px solid rgba(255,255,255,0.1); padding: 24px; }
+  .dice-container { width: 70px; height: 70px; perspective: 600px; }
+  .dice { width: 100%; height: 100%; position: relative; transform-style: preserve-3d; transition: transform 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275); transform: rotateX(20deg) rotateY(20deg); }
+  .face { position: absolute; width: 70px; height: 70px; background: rgba(255,255,255,0.9); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: 900; color: #1e293b; }
+  .f1 { transform: translateZ(35px); } .f2 { transform: rotateY(180deg) translateZ(35px); }
+  .f3 { transform: rotateY(90deg) translateZ(35px); } .f4 { transform: rotateY(-90deg) translateZ(35px); }
+  .f5 { transform: rotateX(90deg) translateZ(35px); } .f6 { transform: rotateX(-90deg) translateZ(35px); }
+  
+  .side-panel { flex: 0 0 320px; display: flex; flex-direction: column; gap: 16px; overflow-y: auto; }
+  .panel-box { background: rgba(30, 41, 59, 0.7); border-radius: 20px; border: 1px solid rgba(255,255,255,0.1); padding: 16px; }
+  .panel-title { font-size: 13px; font-weight: 800; color: #94a3b8; margin-bottom: 12px; }
+  .log-box { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: #cbd5e1; height: 150px; }
+  .log-item { padding: 6px 10px; background: rgba(255,255,255,0.05); border-radius: 8px; border-left: 3px solid #6366f1; }
+
+  /* ========== 弹窗与特效 ========== */
+  .modal-mask { position: fixed; inset: 0; z-index: 100; background: rgba(0,0,0,0.8); backdrop-filter: blur(5px); display: none; align-items: center; justify-content: center; padding: 20px; }
+  .modal-mask.show { display: flex; }
+  .modal { background: #1e293b; width: min(440px, 100%); border-radius: 24px; padding: 24px; max-height: 90vh; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; border: 1px solid #334155; }
+  .modal h3 { font-size: 20px; color: #fff; }
+  .modal label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 600; color: #94a3b8; }
+  .modal input, .modal select, .modal textarea { padding: 12px; background: #0f172a; border: 1px solid #334155; border-radius: 10px; color: #fff; outline: none; }
+  .modal textarea { resize: vertical; min-height: 80px; }
+  .btn-group { display: flex; gap: 10px; margin-top: 10px; }
+  .btn-group button { flex: 1; }
+  
+  .challenge-screen { position: fixed; inset: 0; z-index: 200; background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(20px); display: none; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 20px; }
+  .challenge-screen.show { display: flex; }
+  .chal-desc { font-size: 32px; font-weight: 800; color: #fff; margin: 30px 0; background: rgba(255,255,255,0.1); padding: 30px; border-radius: 24px; border: 2px dashed #ef4444; max-width: 800px; }
+
+  .ai-gen-bar { display: flex; gap: 8px; background: rgba(99,102,241,0.15); padding: 12px; border-radius: 12px; border: 1px solid rgba(99,102,241,0.3); margin-bottom: 8px; }
+  .ai-gen-bar input { flex: 1; padding: 10px; font-size: 14px; border: 1px solid #6366f1; background: #0f172a; border-radius: 8px; color: #fff; }
+  .ai-gen-bar button { padding: 0 16px; border-radius: 8px; border: none; background: #6366f1; color: #fff; font-weight: 700; cursor: pointer; white-space: nowrap; }
+
+  @media (max-width: 900px) {
+    .game-container { flex-direction: column; overflow-y: auto; }
+    .board-wrap { width: 100%; padding-bottom: 10px; }
+    .board { width: 100%; }
+    .side-panel { width: 100%; overflow: visible; }
+    .center-console { width: 60%; padding: 16px; }
+    .hall-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<input type="file" id="avatarFile" accept="image/*" hidden>
+<input type="file" id="cellFile" accept="image/*" hidden>
+<input type="file" id="bgFileInput" accept="image/*" hidden>
+
+<!-- 1. 登录 -->
+<div class="view active" id="view-login">
+  <div class="box">
+    <h2>创建你的档案</h2>
+    <label for="avatarFile" class="avatar-up" id="loginAvatarPreview">
+      <span style="color:#94a3b8; font-size:12px;">上传头像</span>
+    </label>
+    <div class="input-group">
+      <label>你的专属昵称</label>
+      <input type="text" id="loginName" maxlength="8" placeholder="输入昵称">
+    </div>
+    <button class="btn" id="btnLogin">进入游戏中心</button>
+  </div>
+</div>
+
+<!-- 2. 游戏大厅 -->
+<div class="view" id="view-hall">
+  <div class="hall-box">
+    <div class="hall-header">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <img id="hallAvatar" src="" style="width:40px;height:40px;border-radius:50%;border:2px solid #6366f1; background:#fff;">
+        <span id="hallName" style="font-weight:700;">玩家</span>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <button class="btn btn-secondary" style="width:auto; padding:6px 12px; font-size:12px;" id="btnGoProfile">个人中心</button>
+        <button class="btn btn-secondary" style="width:auto; padding:6px 12px; font-size:12px;" id="btnGoLb">排行榜</button>
+      </div>
+    </div>
+
+    <div class="hall-grid">
+      <div class="hall-card" id="btnQuickStart">
+        <div class="icon">🎲</div>
+        <div class="title">快速开始</div>
+        <div class="desc">直接开局，与电脑AI对战</div>
+      </div>
+      <div class="hall-card" id="btnLanPlay">
+        <div class="icon">🌐</div>
+        <div class="title">双人同屏</div>
+        <div class="desc">与身边的朋友轮流掷骰子</div>
+      </div>
+      <div class="hall-card" id="btnMyMaps">
+        <div class="icon">📁</div>
+        <div class="title">我的地图</div>
+        <div class="desc">加载您保存的自定义地图</div>
+      </div>
+      <div class="hall-card" id="btnImportMap">
+        <div class="icon">📥</div>
+        <div class="title">导入地图</div>
+        <div class="desc">粘贴好友的分享码</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 3. 个人档案 -->
+<div class="view" id="view-profile">
+  <div class="profile-box">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+      <h2 style="color:#fff;">👤 个人档案</h2>
+      <button class="btn btn-secondary" style="width:auto; padding:8px 16px;" id="btnBackFromProfile">返回大厅</button>
+    </div>
+    <div class="card">
+      <div style="display:flex; align-items:center; gap:20px; margin-bottom:20px;">
+        <label for="avatarFile" style="cursor:pointer; position:relative;">
+          <img id="profileAvatar" src="" style="width:80px;height:80px;border-radius:50%;border:3px solid #333; object-fit:cover; background:#fff;">
+          <div style="position:absolute;bottom:-5px;left:50%;transform:translateX(-50%);background:#333;font-size:10px;padding:2px 6px;border-radius:10px;white-space:nowrap;">修改</div>
+        </label>
+        <div>
+          <h2 style="font-size:24px;" id="profileName">玩家</h2>
+          <div style="color:#d4af37; font-size:12px; margin-top:5px;">Lv.99 尊贵的主宰</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>👑 我的地图资产库</h3>
+      <div id="savedMapsList" style="display:flex; flex-direction:column; gap:10px;"></div>
+      <button class="btn btn-green" style="margin-top:16px;" id="btnSaveMap">💾 将当前游戏保存为地图模板</button>
+    </div>
+  </div>
+</div>
+
+<!-- 4. 排行榜 -->
+<div class="view" id="view-leaderboard">
+  <div class="profile-box">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+      <h2 style="color:#fff;">🏆 荣耀排行榜</h2>
+      <button class="btn btn-secondary" style="width:auto; padding:8px 16px;" id="btnBackFromLb">返回大厅</button>
+    </div>
+    <div class="lb-item"><div class="rank">1</div><img src="https://api.dicebear.com/7.x/bottts/svg?seed=1"><div class="info"><div class="name">反差coser</div><div style="font-size:12px;color:#666;">总资产 9,999,999</div></div><div style="font-weight:900;color:#d4af37;">LV.26</div></div>
+    <div class="lb-item"><div class="rank">2</div><img src="https://api.dicebear.com/7.x/bottts/svg?seed=2"><div class="info"><div class="name">111</div><div style="font-size:12px;color:#666;">总资产 8,888,888</div></div><div style="font-weight:900;color:#d4af37;">LV.102</div></div>
+    <div class="lb-item"><div class="rank">3</div><img src="https://api.dicebear.com/7.x/bottts/svg?seed=3"><div class="info"><div class="name">蕙蕙</div><div style="font-size:12px;color:#666;">总资产 7,777,777</div></div><div style="font-weight:900;color:#d4af37;">LV.4</div></div>
+    <div class="lb-item" style="border-color:#d4af37;"><div class="rank">4</div><img id="lbMyAvatar" src=""><div class="info"><div class="name" id="lbMyName">我</div><div style="font-size:12px;color:#666;">尊贵的主宰 · 游戏中...</div></div><div style="font-weight:900;color:#d4af37;">LV.99</div></div>
+  </div>
+</div>
+
+<!-- 5. 游戏主界面 -->
+<div class="view" id="view-game">
+  <div class="game-top">
+    <div style="font-size:20px; font-weight:900;" id="uiGameTitle">大富翁</div>
+    <button class="btn btn-secondary" style="width:auto; padding:8px 16px; font-size:12px;" id="btnExitGame">退出</button>
+  </div>
+  
+  <div class="game-container">
+    <div class="board-wrap">
+      <div class="board" id="board">
+        <div class="center-console">
+          <div class="dice-container">
+            <div class="dice" id="dice3d">
+              <div class="face f1">1</div><div class="face f2">6</div><div class="face f3">3</div>
+              <div class="face f4">4</div><div class="face f5">5</div><div class="face f6">2</div>
+            </div>
+          </div>
+          <div class="turn-info" style="text-align:center; margin-top:10px;">
+            <div class="turn-name" id="turnName" style="font-weight:800; display:flex; align-items:center; gap:8px; justify-content:center;"></div>
+            <div class="turn-money" id="turnMoney" style="color:#eab308; font-size:20px; font-weight:900;"></div>
+          </div>
+          <button class="btn roll-btn" id="rollBtn">掷骰子</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="side-panel">
+      <div class="panel-box">
+        <div class="panel-title">玩家状态</div>
+        <div id="playersPanel"></div>
+      </div>
+      <div class="panel-box">
+        <div class="panel-title">系统记录</div>
+        <div class="log-box" id="logBox"></div>
+      </div>
+      <div class="panel-box" id="adminPanel" style="display:block;">
+        <div class="panel-title">房主控制台</div>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <button class="btn btn-secondary" id="addCellBtn">＋ 添加新格子</button>
+          <button class="btn btn-yellow" id="adminModeBtn">🔒 解锁地图编辑</button>
+          <button class="btn btn-secondary" id="settingBtn">⚙️ 全局设置</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 弹窗：购买地产 -->
+<div class="modal-mask" id="buyMask">
+  <div class="modal" style="text-align:center;">
+    <h3 style="color:#eab308;">🏠 购买地产</h3>
+    <p id="buyDesc" style="font-size:15px; margin:10px 0; line-height:1.5;"></p>
+    <div class="btn-group">
+      <button class="btn btn-secondary" id="buyCancelBtn">放弃</button>
+      <button class="btn btn-green" id="buyConfirmBtn">买下它</button>
+    </div>
+  </div>
+</div>
+
+<!-- 弹窗：编辑格子 -->
+<div class="modal-mask" id="editMask">
+  <div class="modal">
+    <h3>编辑格子信息</h3>
+    
+    <div class="ai-gen-bar">
+      <input type="text" id="aiKeyword" placeholder="输入词(如:喝酒/倒霉/发钱)，自动生成">
+      <button id="aiGenBtn">✨ 生成</button>
+    </div>
+
+    <div style="display:flex; gap:16px; align-items:center;">
+      <div id="imgPreview" style="width:100px; height:100px; border-radius:12px; background:#0f172a; border:1px dashed #475569; display:flex; align-items:center; justify-content:center; font-size:12px; overflow:hidden;">无图片</div>
+      <div style="display:flex; flex-direction:column; gap:8px; flex:1;">
+        <button class="btn btn-secondary" id="uploadBtn" style="padding:10px; font-size:12px;">📁 上传图片</button>
+        <button class="btn btn-secondary" id="clearImgBtn" style="padding:10px; font-size:12px;">🗑 清除图片</button>
+      </div>
+    </div>
+    <label>名称 <input id="editName" maxlength="15"></label>
+    <label>类型
+      <select id="editEffect">
+        <option value="property">🏠 购买地产</option>
+        <option value="money">💰 金钱增减</option>
+        <option value="challenge">🎯 大冒险挑战</option>
+        <option value="move">🏃 移动步数</option>
+        <option value="start">🚩 起点</option>
+        <option value="chance">❓ 随机事件</option>
+      </select>
+    </label>
+    <div id="propRow" style="display:none; gap:10px;">
+      <label style="flex:1;">价格 <input type="number" id="editPrice"></label>
+      <label style="flex:1;">租金 <input type="number" id="editToll"></label>
+    </div>
+    <label id="valueRow">数值 <input type="number" id="editValue"></label>
+    <label style="color:#eab308;">💬 结算文案 <textarea id="editCustomLog" placeholder="玩家踩中时的提示..."></textarea></label>
+    <div class="btn-group">
+      <button class="btn btn-secondary" id="deleteCellBtn" style="color:#ef4444;">删除</button>
+      <button class="btn btn-secondary" id="cancelBtn">取消</button>
+      <button class="btn" id="saveBtn">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 弹窗：全局设置 -->
+<div class="modal-mask" id="settingMask">
+  <div class="modal">
+    <h3>全局换皮设置</h3>
+    <label>游戏标题 <input id="setTitle" maxlength="20"></label>
+    <div style="display:flex; gap:10px;">
+      <label style="flex:1;">货币单位 <input id="setCurrency" maxlength="5"></label>
+      <label style="flex:1;">初始资金 <input type="number" id="setStartMoney"></label>
+    </div>
+    <label>经过起点奖励 <input type="number" id="setPassBonus"></label>
+    <div style="display:flex; gap:16px; align-items:center; margin-top:10px;">
+      <div id="bgPreview" style="width:100px; height:60px; border-radius:12px; background:#0f172a; border:1px dashed #475569; display:flex; align-items:center; justify-content:center; font-size:12px; overflow:hidden;">背景</div>
+      <div style="display:flex; flex-direction:column; gap:8px; flex:1;">
+        <button class="btn btn-secondary" id="uploadBgBtn" style="padding:10px; font-size:12px;">📁 上传背景</button>
+        <button class="btn btn-secondary" id="clearBgBtn" style="padding:10px; font-size:12px;">🗑 清除背景</button>
+      </div>
+    </div>
+    <div class="btn-group">
+      <button class="btn btn-secondary" id="settingCancelBtn">取消</button>
+      <button class="btn btn-green" id="settingSaveBtn">保存生效</button>
+    </div>
+  </div>
+</div>
+
+<!-- 弹窗：导入地图 -->
+<div class="modal-mask" id="importMask">
+  <div class="modal">
+    <h3>导入分享地图</h3>
+    <textarea id="importCode" placeholder="请粘贴好友发给你的代码..."></textarea>
+    <div class="btn-group">
+      <button class="btn btn-secondary" id="btnCancelImport">取消</button>
+      <button class="btn btn-green" id="btnConfirmImport">导入</button>
+    </div>
+  </div>
+</div>
+
+<!-- 弹窗：大冒险 -->
+<div class="challenge-screen" id="challengeScreen">
+  <div style="font-size:28px; color:#ef4444; font-weight:900;">🎯 触发挑战</div>
+  <div class="chal-desc" id="challengeDesc"></div>
+  <button class="btn" style="width:200px; background:#ef4444; border-radius:50px;" id="challengeDoneBtn">我认罚！</button>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ===== 核心数据 =====
+  const KEY = 'monopoly_stable_v14'; 
+  const AVATARS = ['https://api.dicebear.com/7.x/bottts/svg?seed=1', 'https://api.dicebear.com/7.x/bottts/svg?seed=2'];
+  const DEFAULT_SETTINGS = { title: '大富翁', currency: '元', startMoney: 2000, passBonus: 300, bgImg: '' };
+  const DEFAULT_CELLS = [
+    { name: '起点', effect: 'start', value: 0, price: 0, toll: 0, customLog: '' },
+    { name: '小吃街', effect: 'property', value: 0, price: 200, toll: 100, customLog: '' },
+    { name: '文具店', effect: 'property', value: 0, price: 250, toll: 120, customLog: '' },
+    { name: '大冒险', effect: 'challenge', value: -100, price: 0, toll: 0, customLog: '做十个深蹲' },
+    { name: '顺风车', effect: 'move', value: 3, price: 0, toll: 0, customLog: '' },
+    { name: '便利店', effect: 'property', value: 0, price: 300, toll: 150, customLog: '' },
+    { name: '打工', effect: 'money', value: 200, price: 0, toll: 0, customLog: '' },
+    { name: '医院', effect: 'money', value: -300, price: 0, toll: 0, customLog: '' }
+  ];
+
+  // AI 词库生成器
+  const AI_DB = [
+    { keys: ['酒', '喝', '醉'], type: 'challenge', name: ['干一杯', '酒王争霸'], val: [-100, -200], desc: ['一口气喝完一杯啤酒！', '喝半杯白酒，喝不完扣除积分'] },
+    { keys: ['钱', '发财', '赚'], type: 'money', name: ['天降横财', '老板发钱'], val: [200, 500], desc: ['路边捡到一个大红包！', '买的彩票中奖了！'] },
+    { keys: ['倒霉', '罚', '亏'], type: 'money', name: ['飞来横祸', '交警罚款'], val: [-100, -300], desc: ['违规停车被贴条了', '手机掉进水里维修费'] },
+    { keys: ['运动', '跑', '蹲'], type: 'challenge', name: ['体能测试', '魔鬼训练'], val: [-50, 0], desc: ['当场做10个深蹲！', '原地高抬腿20次'] },
+    { keys: ['丑', '照', '圈'], type: 'challenge', name: ['公开处刑', '社死现场'], val: [-100, -200], desc: ['发一张自己的丑照到朋友圈', '让大家翻看你的手机相册第一张图'] }
+  ];
+
+  // ===== 状态变量 =====
+  let gameState = { roomId: '', status: 'lobby', settings: {...DEFAULT_SETTINGS}, cells: [], players: [], currentPlayerIndex: 0 };
+  let myId = localStorage.getItem('mp_user_id') || 'user_' + Math.random().toString(36).slice(2, 9); localStorage.setItem('mp_user_id', myId);
+  let myName = localStorage.getItem('mp_user_name') || '';
+  let myAvatar = localStorage.getItem('mp_user_avatar') || '';
+  let myMaps = JSON.parse(localStorage.getItem('mp_user_maps') || '[]');
+
+  const $ = id => document.getElementById(id);
+  const uid = () => Math.random().toString(36).slice(2, 10);
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  let rolling = false, isAdminUnlocked = false, editingId = null;
+  let buyResolve = null;
+
+  // ===== 视图控制 =====
+  function switchView(viewId) { 
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active')); 
+    if($(viewId)) $(viewId).classList.add('active'); 
+    if(viewId === 'view-profile') renderProfile();
+    if(viewId === 'view-game') {
+      // 核心修复：延迟渲染，确保DOM完全渲染且有宽度后再计算棋盘位置
+      setTimeout(() => { layoutBoard(); renderGame(); }, 100);
+    }
+  }
+
+  // ===== 初始化检查 =====
+  if(!myName) switchView('view-login');
+  else { renderProfile(); switchView('view-hall'); }
+
+  // ===== 头像与资料 =====
+  $('avatarFile').addEventListener('change', async e => {
+    const f = e.target.files[0]; e.target.value = ''; if(!f) return;
+    try {
+      myAvatar = await compressImage(f, 150); 
+      localStorage.setItem('mp_user_avatar', myAvatar);
+      $('loginAvatarPreview').innerHTML = `<img src="${myAvatar}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">`;
+      renderProfile();
+    } catch(err) { alert('图片读取失败'); }
+  });
+
+  function renderProfile() {
+    const safeAvatar = myAvatar || AVATARS[0];
+    const safeName = myName || '神秘玩家';
+    if($('profileAvatar')) $('profileAvatar').src = safeAvatar;
+    if($('hallAvatar')) $('hallAvatar').src = safeAvatar;
+    if($('lbMyAvatar')) $('lbMyAvatar').src = safeAvatar;
+    if($('profileName')) $('profileName').textContent = safeName;
+    if($('hallName')) $('hallName').textContent = safeName;
+    if($('lbMyName')) $('lbMyName').textContent = safeName;
+
+    const list = $('savedMapsList'); if(!list) return; list.innerHTML = '';
+    if(myMaps.length === 0) {
+      list.innerHTML = '<div style="color:#666; font-size:14px; text-align:center; padding:10px;">暂无保存的地图，快去游戏中设计一个吧！</div>';
+    } else {
+      myMaps.forEach((map, i) => {
+        const div = document.createElement('div'); 
+        div.style.cssText = 'display:flex; justify-content:space-between; align-items:center; background:#0f172a; padding:12px 16px; border-radius:10px; border:1px solid #334155;';
+        div.innerHTML = `<div style="font-weight:600;">${map.name}</div>
+          <div style="display:flex; gap:8px;">
+            <button class="btn" style="width:auto;padding:6px 12px;font-size:12px;" onclick="loadMap(${i})">载入</button>
+            <button class="btn btn-secondary" style="width:auto;padding:6px 12px;font-size:12px;" onclick="shareMap(${i})">分享</button>
+            <button class="btn" style="width:auto;padding:6px 12px;font-size:12px;background:#ef4444;" onclick="deleteMap(${i})">删除</button>
+          </div>`;
+        list.appendChild(div);
+      });
+    }
+  }
+
+  if (myName) { 
+    $('loginName').value = myName; 
+    if(myAvatar) $('loginAvatarPreview').innerHTML = `<img src="${myAvatar}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">`;
+  }
+
+  $('btnLogin').addEventListener('click', () => { 
+    const n = $('loginName').value.trim(); 
+    if(!n) return alert('请输入昵称'); 
+    myName = n; localStorage.setItem('mp_user_name', myName); 
+    renderProfile(); switchView('view-hall'); 
+  });
+
+  // ===== 大厅路由 =====
+  $('btnGoProfile').addEventListener('click', () => switchView('view-profile'));
+  $('btnGoLb').addEventListener('click', () => switchView('view-leaderboard'));
+  $('btnBackFromProfile').addEventListener('click', () => switchView('view-hall'));
+  $('btnBackFromLb').addEventListener('click', () => switchView('view-hall'));
+  $('btnMyMaps').addEventListener('click', () => switchView('view-profile'));
+
+  // ===== 游戏流程 =====
+  $('btnQuickStart').addEventListener('click', () => {
+    startGameWithConfig(DEFAULT_CELLS.map(c => ({ id: uid(), img: '', ...c })), {...DEFAULT_SETTINGS}, 'single');
+  });
+
+  $('btnLanPlay').addEventListener('click', () => {
+    startGameWithConfig(DEFAULT_CELLS.map(c => ({ id: uid(), img: '', ...c })), {...DEFAULT_SETTINGS}, 'multi');
+  });
+
+  function startGameWithConfig(cells, settings, mode) {
+    const p1 = { id: myId, name: myName || '我', avatar: myAvatar || AVATARS[0], money: settings.startMoney, pos: 0, isHost: true, isBankrupt: false };
+    const p2 = { id: 'bot_1', name: mode === 'multi' ? '玩家 2' : '电脑AI', avatar: AVATARS[1], money: settings.startMoney, pos: 0, isHost: false, isBankrupt: false };
+    
+    gameState = { roomId: mode, status: 'playing', settings, cells, players: [p1, p2], currentPlayerIndex: 0 };
+    switchView('view-game'); 
+  }
+
+  // ===== 资产库 =====
+  $('btnSaveMap').addEventListener('click', () => {
+    if(!gameState.cells || gameState.cells.length === 0) return alert('请先进入游戏并设计好地图！');
+    const name = prompt('给这套地图起个名字：', '我的专属地图');
+    if(!name) return;
+    myMaps.push({ name, cells: JSON.parse(JSON.stringify(gameState.cells)), settings: JSON.parse(JSON.stringify(gameState.settings)) });
+    localStorage.setItem('mp_user_maps', JSON.stringify(myMaps));
+    renderProfile(); alert('地图保存成功！');
+  });
+
+  window.loadMap = function(idx) { 
+    const map = myMaps[idx];
+    startGameWithConfig(JSON.parse(JSON.stringify(map.cells)), JSON.parse(JSON.stringify(map.settings)), 'custom');
+  };
+
+  window.shareMap = function(idx) { 
+    const code = btoa(encodeURIComponent(JSON.stringify(myMaps[idx]))); 
+    navigator.clipboard.writeText(code).then(() => alert('分享码已复制！')).catch(()=>alert('复制失败')); 
+  };
+
+  window.deleteMap = function(idx) { 
+    if(confirm('确定删除吗？')) { myMaps.splice(idx, 1); localStorage.setItem('mp_user_maps', JSON.stringify(myMaps)); renderProfile(); } 
+  };
+
+  $('btnImportMap').addEventListener('click', () => { $('importCode').value = ''; $('importMask').classList.add('show'); });
+  $('btnCancelImport').addEventListener('click', () => $('importMask').classList.remove('show'));
+  $('btnConfirmImport').addEventListener('click', () => {
+    const code = $('importCode').value.trim();
+    if(!code) return alert('请输入分享码');
+    try {
+      const map = JSON.parse(decodeURIComponent(atob(code)));
+      myMaps.push(map); localStorage.setItem('mp_user_maps', JSON.stringify(myMaps));
+      alert('导入成功！'); $('importMask').classList.remove('show'); switchView('view-profile');
+    } catch(e) { alert('分享码无效'); }
+  });
+
+  $('btnExitGame').addEventListener('click', () => { 
+    if(confirm('退出当前游戏？')) switchView('view-hall');
+  });
+
+  // ===== 核心渲染 =====
+  function renderGame() {
+    if(!$('view-game').classList.contains('active') || !gameState.cells.length) return;
+    $('uiGameTitle').textContent = gameState.settings.title;
+    if (gameState.settings.bgImg) document.body.style.backgroundImage = `url(${gameState.settings.bgImg})`;
+    else document.body.style.backgroundImage = `radial-gradient(circle at 50% 0%, #1e1b4b 0%, #0f172a 80%)`;
+
+    const board = $('board');
+    if (board.querySelectorAll('.cell').length !== gameState.cells.length) {
+      board.querySelectorAll('.cell').forEach(el => el.remove());
+      gameState.cells.forEach((c, i) => {
+        const el = document.createElement('div'); el.className = 'cell';
+        el.innerHTML = `<div class="cell-img"></div><div class="cell-body"><div class="cell-name"></div><div class="cell-fx"></div></div><div class="flag"></div><div class="tokens"></div>`;
+        el.addEventListener('click', () => openEditor(c.id));
+        board.appendChild(el);
+      });
+    }
+    layoutBoard();
+    
+    board.querySelectorAll('.cell').forEach((el, i) => {
+      const c = gameState.cells[i]; if(!c) return;
+      el.querySelector('.cell-name').textContent = c.name;
+      const fx = el.querySelector('.cell-fx');
+      if (c.effect === 'property') fx.textContent = c.owner !== undefined ? `租:${c.toll}` : `售:${c.price}`;
+      else if (c.effect === 'challenge') fx.textContent = c.value !== 0 ? `${c.value}${gameState.settings.currency}` : '大冒险';
+      else fx.textContent = c.effect === 'start' ? `+${gameState.settings.passBonus}` : (c.effect === 'chance' ? '随机' : c.value);
+
+      const imgBox = el.querySelector('.cell-img');
+      if (c.img) { if (imgBox.dataset.src !== c.img) { imgBox.innerHTML = `<img src="${c.img}">`; imgBox.dataset.src = c.img; } el.classList.add('has-img'); } 
+      else { imgBox.innerHTML = ''; imgBox.dataset.src = ''; el.classList.remove('has-img'); }
+
+      el.className = 'cell';
+      if (c.effect === 'property' && c.owner !== undefined) {
+        const oIdx = gameState.players.findIndex(p => p.id === c.owner);
+        if (oIdx >= 0) { el.classList.add(`owned-${oIdx % 5}`); el.querySelector('.flag').textContent = '🚩'; }
+      } else { el.querySelector('.flag').textContent = ''; }
+
+      const tokenBox = el.querySelector('.tokens'); tokenBox.innerHTML = '';
+      gameState.players.forEach((p, pIdx) => {
+        if (p.pos === i && !p.isBankrupt) {
+          const t = document.createElement('img'); t.className = 'token'; t.src = p.avatar;
+          t.style.left = `calc(50% + ${(pIdx % 2) * 15 - 7}px)`; 
+          t.style.top = `calc(50% + ${Math.floor(pIdx / 2) * 15 - 7}px)`;
+          if (pIdx === gameState.currentPlayerIndex) t.classList.add('active');
+          tokenBox.appendChild(t);
+        }
+      });
+    });
+
+    const cp = gameState.players[gameState.currentPlayerIndex];
+    if (cp) {
+      $('turnName').innerHTML = `<img src="${cp.avatar}" style="width:24px;height:24px;border-radius:50%;"> ${cp.name}`;
+      $('turnMoney').textContent = cp.money + ' ' + gameState.settings.currency;
+    }
+
+    const panel = $('playersPanel'); panel.innerHTML = '';
+    gameState.players.forEach((p, i) => {
+      const div = document.createElement('div');
+      div.style.cssText = `display:flex; justify-content:space-between; padding:8px; border-radius:8px; margin-bottom:5px; background:${i === gameState.currentPlayerIndex ? 'rgba(99,102,241,0.2)' : 'rgba(15,23,42,0.5)'};`;
+      div.innerHTML = `<div style="display:flex; align-items:center; gap:8px;"><img src="${p.avatar}" style="width:24px;height:24px;border-radius:50%;"> ${p.name}</div><div style="color:#eab308; font-weight:700;">${p.money}</div>`;
+      panel.appendChild(div);
+    });
+
+    $('rollBtn').disabled = cp.id !== myId || rolling;
+    $('rollBtn').textContent = rolling ? '移动中...' : (cp.id === myId ? '掷骰子' : '等待对方...');
+  }
+
+  // ===== 掷骰子与结算 =====
+  $('rollBtn').addEventListener('click', async () => {
+    const cp = gameState.players[gameState.currentPlayerIndex];
+    if (cp.id !== myId || rolling) return;
+    await executeTurn(cp);
+  });
+
+  async function executeTurn(cp) {
+    rolling = true; renderGame();
+    const d = 1 + Math.floor(Math.random() * 6);
+    const rotX = d === 1 ? 0 : d === 6 ? 180 : d === 5 ? -90 : d === 2 ? 90 : 0;
+    const rotY = d === 3 ? -90 : d === 4 ? 90 : (d===1||d===6)?0:90;
+    $('dice3d').style.transform = `rotateX(${360 + rotX}deg) rotateY(${360 + rotY}deg)`;
+    
+    await sleep(600);
+    log(`🎲 ${cp.name} 掷出 ${d} 点`);
+
+    for (let i = 0; i < d; i++) {
+      cp.pos = (cp.pos + 1) % gameState.cells.length;
+      if (cp.pos === 0) { cp.money += gameState.settings.passBonus; log(`🏁 ${cp.name} 经过起点 +${gameState.settings.passBonus}`); }
+      renderGame(); await sleep(200);
+    }
+    await sleep(300);
+    
+    const c = gameState.cells[cp.pos];
+    const actionText = c.customLog ? c.customLog : '';
+    if (c.effect === 'property' && c.owner === undefined) {
+      if (cp.id === myId) {
+        if(cp.money >= c.price) {
+          const buy = await new Promise(resolve => {
+            $('buyDesc').textContent = `花费 ${c.price} ${gameState.settings.currency} 买下【${c.name}】？`;
+            $('buyMask').classList.add('show'); buyResolve = resolve;
+          });
+          $('buyMask').classList.remove('show');
+          if(buy) { cp.money -= c.price; c.owner = cp.id; log(`🏠 ${cp.name} 买下 ${c.name}`); }
+        }
+      } else if (cp.id.startsWith('bot_')) {
+        if(cp.money >= c.price) { cp.money -= c.price; c.owner = cp.id; log(`🏠 ${cp.name} 买下 ${c.name}`); }
+      }
+    } else if (c.effect === 'property' && c.owner !== cp.id) {
+      const owner = gameState.players.find(p => p.id === c.owner);
+      if(owner) { cp.money -= c.toll; owner.money += c.toll; log(`💰 ${cp.name} 交租 ${c.toll}`); }
+    } else if (c.effect === 'challenge') {
+      if(cp.id === myId) {
+        $('challengeDesc').textContent = actionText || c.name;
+        $('challengeScreen').classList.add('show');
+        await new Promise(r => $('challengeDoneBtn').onclick = () => { $('challengeScreen').classList.remove('show'); r(); });
+      } else { log(`🎯 ${cp.name} 执行了【${c.name}】`); await sleep(800); }
+      cp.money += c.value;
+    } else if (c.effect === 'money') {
+      cp.money += c.value;
+      log(actionText ? `💰 ${actionText}` : `💰 资金变动 ${c.value}`);
+    }
+
+    renderGame();
+    gameState.currentPlayerIndex = (gameState.currentPlayerIndex + 1) % gameState.players.length;
+    rolling = false; renderGame();
+
+    // AI 自动回合
+    const nextCp = gameState.players[gameState.currentPlayerIndex];
+    if(nextCp && nextCp.id.startsWith('bot_')) {
+      setTimeout(() => executeTurn(nextCp), 1000);
+    }
+  }
+
+  $('buyConfirmBtn').addEventListener('click', () => { if(buyResolve) buyResolve(true); });
+  $('buyCancelBtn').addEventListener('click', () => { if(buyResolve) buyResolve(false); });
+
+  function layoutBoard() {
+    const B = $('board').clientWidth;
+    if(B === 0) return;
+    let c = Math.min(3.4 * B / (gameState.cells.length + 3.4), B / 5.5);
+    const w = B - c, step = 4 * w / gameState.cells.length;
+    $('board').querySelectorAll('.cell').forEach((el, i) => {
+      const s = i * step; let x, y;
+      if (s < w) { x = c / 2 + s; y = c / 2; } else if (s < 2 * w) { x = c / 2 + w; y = c / 2 + (s - w); }
+      else if (s < 3 * w) { x = c / 2 + w - (s - 2 * w); y = c / 2 + w; } else { x = c / 2; y = c / 2 + w - (s - 3 * w); }
+      el.style.width = c + 'px'; el.style.height = c + 'px';
+      el.style.left = (x - c / 2) + 'px'; el.style.top = (y - c / 2) + 'px';
+      el.style.fontSize = Math.max(8, c * 0.155) + 'px';
+    });
+  }
+
+  function log(msg) { const d = document.createElement('div'); d.className = 'log-item'; d.textContent = msg; $('logBox').appendChild(d); $('logBox').scrollTop = $('logBox').scrollHeight; }
+  
+  async function compressImage(file, maxSize) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader(); reader.onerror = reject;
+      reader.onload = e => {
+        const img = new Image(); img.onerror = reject;
+        img.onload = () => {
+          const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
+          const canvas = document.createElement('canvas'); canvas.width = img.width * scale; canvas.height = img.height * scale;
+          canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL('image/jpeg', 0.6));
+        }; img.src = e.target.result;
+      }; reader.readAsDataURL(file);
+    });
+  }
+
+  // ===== 编辑与全局设置 =====
+  window.openEditor = function(id) { 
+    if(!isAdminUnlocked) return; 
+    const c = gameState.cells.find(x => x.id === id); editingId = id; 
+    $('editName').value = c.name; $('editEffect').value = c.effect;
+    $('editValue').value = c.value || 0; $('editPrice').value = c.price || 200; $('editToll').value = c.toll || 100;
+    $('editCustomLog').value = c.customLog || '';
+    $('imgPreview').innerHTML = c.img ? `<img src="${c.img}" style="width:100%;height:100%;object-fit:cover;">` : '无图片';
+    $('propRow').style.display = c.effect === 'property' ? 'flex' : 'none';
+    $('valueRow').style.display = (c.effect === 'money' || c.effect === 'challenge' || c.effect === 'move') ? 'flex' : 'none';
+    $('aiKeyword').value = '';
+    $('deleteCellBtn').style.display = gameState.cells.length > 6 ? 'block' : 'none';
+    $('editMask').classList.add('show'); 
+  };
+
+  $('aiGenBtn').addEventListener('click', () => {
+    const kw = $('aiKeyword').value.trim();
+    if(!kw) return alert('请输入关键词，如：酒、钱、运动');
+    let matched = AI_DB.find(db => db.keys.some(k => kw.includes(k)));
+    if (matched) {
+      const name = matched.name[Math.floor(Math.random() * matched.name.length)];
+      const desc = matched.desc[Math.floor(Math.random() * matched.desc.length)];
+      const val = Array.isArray(matched.val) ? Math.floor(Math.random() * (matched.val[1] - matched.val[0] + 1)) + matched.val[0] : matched.val;
+      $('editName').value = name; $('editEffect').value = matched.type; $('editValue').value = val; $('editCustomLog').value = desc;
+    } else {
+      $('editName').value = kw + '事件'; $('editEffect').value = 'challenge'; $('editValue').value = -100;
+      $('editCustomLog').value = `围绕【${kw}】完成一个指定的动作，否则扣除积分。`;
+    }
+    syncValueRow();
+  });
+
+  function syncValueRow() {
+    const e = $('editEffect').value;
+    $('valueRow').style.display = ['money','move','challenge'].includes(e) ? 'flex' : 'none';
+    $('propRow').style.display = e === 'property' ? 'flex' : 'none';
+  }
+  $('editEffect').addEventListener('change', syncValueRow);
+  
+  $('adminModeBtn').addEventListener('click', () => { 
+    isAdminUnlocked = !isAdminUnlocked; 
+    $('adminModeBtn').textContent = isAdminUnlocked ? '🔓 退出编辑' : '🔒 解锁地图编辑'; 
+    document.body.classList.toggle('admin-mode', isAdminUnlocked); 
+  });
+
+  $('addCellBtn').addEventListener('click', () => {
+    if(gameState.cells.length >= 36) return alert('最多36个格子');
+    const newCell = { id: uid(), name: '新地皮', effect: 'property', value: 0, price: 200, toll: 100, customLog: '' };
+    gameState.cells.push(newCell); renderGame(); setTimeout(() => openEditor(newCell.id), 100);
+  });
+
+  $('uploadBtn').addEventListener('click', () => $('cellFile').click());
+  $('cellFile').addEventListener('change', async e => { 
+    const f = e.target.files[0]; e.target.value = ''; if(!f) return;
+    const img = await compressImage(f, 150); 
+    const c = gameState.cells.find(x => x.id === editingId); c.img = img;
+    $('imgPreview').innerHTML = `<img src="${img}" style="width:100%;height:100%;object-fit:cover;">`; 
+  });
+  $('clearImgBtn').addEventListener('click', () => {
+    const c = gameState.cells.find(x => x.id === editingId); c.img = '';
+    $('imgPreview').innerHTML = '无图片';
+  });
+
+  $('saveBtn').addEventListener('click', () => { 
+    const c = gameState.cells.find(x => x.id === editingId); 
+    c.name = $('editName').value.trim() || '空地'; c.effect = $('editEffect').value;
+    c.value = Number($('editValue').value) || 0; c.price = Number($('editPrice').value) || 0; c.toll = Number($('editToll').value) || 0;
+    c.customLog = $('editCustomLog').value.trim();
+    renderGame(); $('editMask').classList.remove('show'); 
+  });
+
+  $('deleteCellBtn').addEventListener('click', () => {
+    if(!confirm('确定删除该格子吗？')) return;
+    gameState.cells = gameState.cells.filter(x => x.id !== editingId);
+    gameState.players.forEach(p => { if(p.pos >= gameState.cells.length) p.pos = 0; });
+    renderGame(); $('editMask').classList.remove('show');
+  });
+
+  $('cancelBtn').addEventListener('click', () => $('editMask').classList.remove('show'));
+
+  // 全局设置
+  $('settingBtn').addEventListener('click', () => {
+    if (!isAdminUnlocked) return;
+    const s = gameState.settings;
+    $('setTitle').value = s.title; $('setCurrency').value = s.currency;
+    $('setStartMoney').value = s.startMoney; $('setPassBonus').value = s.passBonus;
+    $('settingMask').classList.add('show');
+  });
+
+  $('uploadBgBtn').addEventListener('click', () => $('bgFileInput').click());
+  $('bgFileInput').addEventListener('change', async e => { 
+    const f = e.target.files[0]; e.target.value = ''; if(!f) return;
+    const img = await compressImage(f, 800); 
+    $('bgPreview').innerHTML = `<img src="${img}" style="width:100%;height:100%;object-fit:cover;">`; 
+    $('bgPreview').dataset.src = img;
+  });
+  $('clearBgBtn').addEventListener('click', () => { $('bgPreview').innerHTML = '背景'; $('bgPreview').dataset.src = ''; });
+
+  $('settingSaveBtn').addEventListener('click', () => {
+    const s = gameState.settings;
+    s.title = $('setTitle').value.trim() || '大富翁';
+    s.currency = $('setCurrency').value.trim() || '元';
+    s.startMoney = Number($('setStartMoney').value) || 2000;
+    s.passBonus = Number($('setPassBonus').value) || 300;
+    if($('bgPreview').dataset.src) s.bgImg = $('bgPreview').dataset.src;
+    else s.bgImg = '';
+    renderGame(); $('settingMask').classList.remove('show');
+  });
+  $('settingCancelBtn').addEventListener('click', () => $('settingMask').classList.remove('show'));
+
+  window.addEventListener('resize', () => { if($('view-game').classList.contains('active')) layoutBoard(); });
+
+})();
+</script>
+</body>
+</html>
